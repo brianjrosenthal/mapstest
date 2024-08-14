@@ -1,0 +1,133 @@
+<html>
+<head>
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+<script src="https://www.amcharts.com/lib/5/map.js"></script>
+<script src="https://www.amcharts.com/lib/5/themes/Animated.js"></script>
+
+<style type="text/css">
+@import url("https://fonts.googleapis.com/css?family=Archivo+Narrow");
+body {
+  font-family: "Archivo Narrow";
+}
+#chartdiv {
+  width: 100%;
+  height: 98vh;
+}
+</style>
+<script type="text/javascript">
+
+function initialize(countriesColors, countriesData, tooltipFunction) {
+	var root = am5.Root.new('chartdiv');
+	root.setThemes([
+		am5themes_Animated.new(root)
+	]);
+
+	var chart = root.container.children.push(
+		am5map.MapChart.new(root, {
+			panX: "rotateX",
+			panY: "translateY",
+			projection: am5map.geoMercator(),
+		})
+	);
+
+
+	// Create main polygon series for countries
+	// https://www.amcharts.com/docs/v5/charts/map-chart/map-polygon-series/
+	var polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+		geoJSON: am5geodata_worldLow,
+		exclude: ["AQ"] // exclude Antarctica
+	}));
+
+	polygonSeries.mapPolygons.template.setAll({
+		tooltipText: "{name}",
+		fillOpacity: 0.8
+	});
+
+  polygonSeries.mapPolygons.template.adapters.add("fill", function (fill, target) {
+    var dataContext = target.dataItem.dataContext;
+    if (!dataContext.colorWasSet) {
+      dataContext.colorWasSet = true;
+      var id = target.dataItem.dataContext.id;
+      if (id in countriesColors) {
+        var color = countriesColors[id];
+        target.setRaw("fill", color);
+      } else {
+        //var color = am5.Color.saturate(colorSet.getIndex(i), 0.3);
+        var color = am5.color(0xCCCCCC);
+        target.setRaw("fill", color);
+      }
+      return color;
+    }
+    else {
+      return fill;
+    }
+  });
+
+  var boundTooltipFunction = tooltipFunction.bind(null, countriesData);
+  polygonSeries.mapPolygons.template.adapters.add("tooltipText", boundTooltipFunction);
+
+  polygonSeries.mapPolygons.template.states.create("hover", { fillOpacity: 1 });
+
+  var graticuleSeries = chart.series.push(am5map.GraticuleSeries.new(root, {}));
+  graticuleSeries.mapLines.template.setAll({
+    stroke: root.interfaceColors.get("alternativeBackground"),
+    strokeOpacity: 0.1
+  });
+
+  // Add zoom control
+  // https://www.amcharts.com/docs/v5/charts/map-chart/map-pan-zoom/#Zoom_control
+  var zoomControl = chart.set("zoomControl", am5map.ZoomControl.new(root, {}));
+  zoomControl.homeButton.set("visible", true);
+
+  // Set clicking on "water" to zoom out
+  chart.chartContainer.get("background").events.on("click", function() {
+    chart.goHome();
+  })
+
+  // Make stuff animate on load
+  chart.appear(1000, 100);
+}
+
+var countriesColors = {
+		"US": am5.color(0xFF0000),
+		"CA": am5.color(0x0000FF),
+		"FR": am5.color(0x00FF00),
+		// Add more country codes and their corresponding colors here
+};
+
+var countriesData = {
+		"US": {
+				name: "United States",
+				population: "331 million",
+				area: "9.8 million km²"
+		},
+		"CA": {
+				name: "Canada",
+				population: "38 million",
+				area: "9.98 million km²"
+		},
+		"FR": {
+				name: "France",
+				population: "67 million",
+				area: "643,801 km²"
+		},
+		// Add more country data here
+};
+
+var tooltipFunction = function(countriesData, text, target) {
+			var countryId = target.dataItem.dataContext.id;
+			var data = countriesData[countryId];
+			if (data) {
+					return data.name + "\nPopulation: " + data.population + "\nArea: " + data.area;
+			}
+			return text;
+};
+
+am5.ready(initialize.bind(null, countriesColors, countriesData, tooltipFunction));
+
+</script>
+</head>
+<body>
+<div id="chartdiv"></div>
+</body>
